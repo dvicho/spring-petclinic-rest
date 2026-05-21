@@ -20,6 +20,7 @@
     <properties>
 
         <!-- Third-party libraries -->
+        <rest-assured.version>6.0.0</rest-assured.version>
         <spring-data-jdbc.version>1.2.1.RELEASE</spring-data-jdbc.version>
         <springdoc-openapi-ui.version>3.0.3</springdoc-openapi-ui.version>
         <jackson-databind-nullable.version>0.2.10</jackson-databind-nullable.version>
@@ -49,6 +50,7 @@
         <sonar.organization>spring-petclinic-rest</sonar.organization>
         <sonar.host.url>https://sonarcloud.io</sonar.host.url>
 
+        <allure.version>2.25.0</allure.version>
     </properties>
 
     <dependencies>
@@ -124,6 +126,28 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.rest-assured</groupId>
+            <artifactId>spring-mock-mvc</artifactId>
+            <version>${rest-assured.version}</version>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- Allure + JUnit 5 -->
+        <dependency>
+            <groupId>io.qameta.allure</groupId>
+            <artifactId>allure-junit5</artifactId>
+            <version>${allure.version}</version>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- Allure + REST-assured -->
+        <dependency>
+            <groupId>io.qameta.allure</groupId>
+            <artifactId>allure-rest-assured</artifactId>
+            <version>${allure.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -240,6 +264,23 @@
                     </reportSet>
                 </reportSets>
             </plugin>
+            <!--
+            NOTE: Allure Maven Plugin is excluded from site generation due to compatibility issues.
+            Generate Allure report separately using: ./mvnw allure:report
+            See REST_ASSURED_TESTING.md for details.
+            -->
+            <!--
+            <plugin>
+                <groupId>io.qameta.allure</groupId>
+                <artifactId>allure-maven</artifactId>
+                <version>2.12.0</version>
+                <configuration>
+                    <reportVersion>${allure.version}</reportVersion>
+                    <resultsDirectory>${project.build.directory}/allure-results</resultsDirectory>
+                    <reportDirectory>${project.build.directory}/site/allure</reportDirectory>
+                </configuration>
+            </plugin>
+            -->
         </plugins>
     </reporting>
 
@@ -431,6 +472,56 @@
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>3.2.5</version>
+                <configuration>
+                    <argLine>
+                        -javaagent:"${settings.localRepository}/org/aspectj/aspectjweaver/1.9.21/aspectjweaver-1.9.21.jar"
+                    </argLine>
+                    <systemProperties>
+                        <allure.results.directory>${project.build.directory}/allure-results</allure.results.directory>
+                    </systemProperties>
+                </configuration>
+                <dependencies>
+                    <dependency>
+                        <groupId>org.aspectj</groupId>
+                        <artifactId>aspectjweaver</artifactId>
+                        <version>1.9.21</version>
+                    </dependency>
+                </dependencies>
+            </plugin>
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-failsafe-plugin</artifactId>
+                <version>3.2.5</version>
+                <configuration>
+                    <argLine>
+                        -javaagent:"${settings.localRepository}/org/aspectj/aspectjweaver/1.9.21/aspectjweaver-1.9.21.jar"
+                    </argLine>
+                    <systemProperties>
+                        <allure.results.directory>${project.build.directory}/allure-results</allure.results.directory>
+                    </systemProperties>
+                </configuration>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>integration-test</goal>
+                            <goal>verify</goal>
+                        </goals>
+                    </execution>
+                </executions>
+                <dependencies>
+                    <dependency>
+                        <groupId>org.aspectj</groupId>
+                        <artifactId>aspectjweaver</artifactId>
+                        <version>1.9.21</version>
+                    </dependency>
+                </dependencies>
+            </plugin>
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-enforcer-plugin</artifactId>
                 <executions>
                     <execution>
@@ -467,6 +558,33 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-site-plugin</artifactId>
                 <version>${maven.site-plugin.version}</version>
+            </plugin>
+            <plugin>
+                <groupId>io.qameta.allure</groupId>
+                <artifactId>allure-maven</artifactId>
+                <version>2.12.0</version>
+                <configuration>
+                    <reportVersion>${allure.version}</reportVersion>
+                    <resultsDirectory>${project.build.directory}/allure-results</resultsDirectory>
+                    <reportDirectory>${project.build.directory}/allure-report</reportDirectory>
+                </configuration>
+            </plugin>
+
+            <!-- Serve Allure Report via HTTP (Python simple HTTP server) -->
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <version>3.1.0</version>
+                <configuration>
+                    <executable>python3</executable>
+                    <arguments>
+                        <argument>-m</argument>
+                        <argument>http.server</argument>
+                        <argument>8080</argument>
+                        <argument>--directory</argument>
+                        <argument>${project.build.directory}/allure-report</argument>
+                    </arguments>
+                </configuration>
             </plugin>
         </plugins>
     </build>
